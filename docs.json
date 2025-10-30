@@ -44,7 +44,17 @@
               "ai-tools/claude-code",
               "ai-tools/windsurf"
             ]
+          },
+          {
+            "group": "Tutorials",
+            "pages": [
+              "guides/getting-started",
+              "guides/python-setup",
+              "guides/api-integration"
+            ]
           }
+
+          
         ]
       },
       {
