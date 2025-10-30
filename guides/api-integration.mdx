@@ -1,130 +1,86 @@
 ---
 title: "Getting Started"
 description: "Quick start guide to get up and running with Fingular"
+icon: "rocket"
 ---
 
-icon: "rocket"
-
-Начало работы с Fingular
-
-=============================
+# Начало работы с Fingular
 
 Добро пожаловать в Fingular! Это руководство поможет вам настроить ваш первый проект всего за несколько минут.
 
-Предварительные требования
-
--------------
+## Предварительные требования
 
 Перед началом работы убедитесь, что у вас установлено:
 
-\*   Node.js версии 16 или выше
+*   Node.js версии 16 или выше
+*   Python 3.8 или новее
+*   Git на вашем компьютере
+*   Аккаунт на GitHub или GitLab
+*   Базовые навыки работы с командной строкой
 
-\*   Python 3.8 или новее
-
-\*   Git на вашем компьютере
-
-\*   Аккаунт на GitHub или GitLab
-
-\*   Базовые навыки работы с командной строкой
-
-Установка
-
-------------
+## Установка
 
 ### Вариант 1: Использование npm
 
-\`\`\`bash
-
+```bash
 npm install -g fingular-cli
-
 fingular init my-project
-
 cd my-project
-
-\`\`\`
+```
 
 ### Вариант 2: Использование pip
 
-\`\`\`bash
-
+```bash
 pip install fingular
-
 fingular create --name my-project
-
 cd my-project
+```
 
-\`\`\`
-
-Настройка проекта
-
-------------
+## Настройка проекта
 
 1. Создайте конфигурационный файл:
 
-\`\`\`bash
-
+```bash
 fingular config init
-
-\`\`\`
+```
 
 2. Отредактируйте файл `fingular.config.json`:
 
-\`\`\`json
-
+```json
 {
-
   "apiKey": "your-api-key-here",
-
   "environment": "development",
-
   "port": 3000
-
 }
-
-\`\`\`
+```
 
 3. Установите зависимости:
 
-\`\`\`bash
-
+```bash
 npm install
+```
 
-\`\`\`
-
-Первый запуск
-
-------------
+## Первый запуск
 
 Запустите ваш проект командой:
 
-\`\`\`bash
-
+```bash
 fingular start
-
-\`\`\`
+```
 
 Откройте браузер и перейдите по адресу `http://localhost:3000`
 
-Основные команды
+## Основные команды
 
-------------
+*   `fingular start` - Запуск сервера разработки
+*   `fingular build` - Сборка проекта для продакшена
+*   `fingular deploy` - Развертывание проекта
+*   `fingular test` - Запуск тестов
 
-\*   `fingular start` - Запуск сервера разработки
-
-\*   `fingular build` - Сборка проекта для продакшена
-
-\*   `fingular deploy` - Развертывание проекта
-
-\*   `fingular test` - Запуск тестов
-
-Следующие шаги
-
-------------
+## Следующие шаги
 
 Теперь вы готовы к работе! Ознакомьтесь со следующими разделами:
 
-\*   [Интеграция API](/guides/api-integration)
-
-\*   [Быстрый старт](/quickstart)
-
-\*   [Разработка](/development)
+*   [Интеграция API](/guides/api-integration)
+*   [Быстрый старт](/quickstart)
+*   [Разработка](/development)
