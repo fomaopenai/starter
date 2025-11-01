@@ -1,43 +1,102 @@
-# Mintlify Starter Kit
+---
+title: "Структура проекта"
+description: "Организация кода и структура директорий в Python Backend проектах"
+---
 
-Use the starter kit to get your docs deployed and ready to customize.
+# Структура проекта
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+Следим за тем чтобы были разделены следующие слои приложения:
+- конфиги приложения (работаем с env)
+- зависимости
+- миграции
+- модели
+- слой работы с данными (запросы в апи, с3, бд, кафку и т д)
+- бизнес логика
+- web интерфейс
+- единая точка входа где описаны все команды для приложения
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+Для соблюдения такого подхода в сервисах организована структура вида:
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
+## Основные директории
 
-## Development
+### app
+Директория с логикой приложения. Описанием всех usecase-ов, моделей, и тд. Содержит следующие директории:
 
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+- **models** - модели сущностей с которыми работает приложение (alembic, marshmallow, etc)
+- **repositories** - уровень данных. отвечает за логику создания, доступа, редактирования. Не содержит бизнес логики.
+- **services** - уровень бизнес логики. Этот уровень не знает про web и не знает про низкоуровневые детали хранения сущностей (БД, s3, файловая система, другие сервисы и пр.)
 
+### web
+Директория с логикой работы web приложения. Описание endpoint'ов, построение apispec, и пр.
+
+- **routes.py** - определяет перечень всех endpoint'ов
+- **api** - директория, содержит описание endpoint'ов: схемы входных/выходных параметров, apispec, код вызова определенного сервиса из app/services.
+
+### Другие директории
+
+- **settings** - Настройки приложения, константы и переменные окружения.
+- **helpers / utils** - Общие инструменты не содержащие бизнес-логики
+- **requirements** - Директория с описанием зависимостей приложения
+- **docker-compose.yml** - поднимает все зависимости приложения (БД, s3, очереди), для **локальной** разработки
+- **manage.py** - единая точка входа где описаны все консольные команды для приложения
+
+## Конфигурация
+
+Проект конфигурируется с помощью **pyproject.toml** файла (вместо setup.cfg и requirements.txt), который содержит dev и prod зависимости, конфиги линтеров и pytest'а.
+
+## Зависимости
+
+В качестве пакетного менеджера используем `uv` ([ссылка на документацию в confluence](https://confluence.fingular.com/spaces/PB/pages/142644478)). Версии всех зависимостей фиксируем в `uv.lock` файле в корне проекта. `uv.lock` генерируется `uv` автоматически.
+
+## Docker
+
+Пример типового **Dockerfile** (python3.10):
+
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+
+RUN pip install uv && \
+    uv sync --frozen
+
+COPY . .
+
+CMD ["python", "manage.py", "runserver"]
 ```
-npm i -g mint
-```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+Чтобы тесты не оказывались в билде, добавляем **.dockerignore** файл, который возволяет исключить файлы из контекста билда. В .dockerignore файле должна быть директория `tests/`
 
-```
-mint dev
-```
+## Makefile
 
-View your local preview at `http://localhost:3000`.
+Шаблонный вариант Makefile'а с часто используемыми командами
 
-## Publishing changes
+### Доступные команды
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
-
-## Need help?
-
-### Troubleshooting
-
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
-
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+| Команда | Описание |
+|---------|----------|
+| `make help` | показать краткую справку |
+| `make install-uv` | глобальная установка `uv` |
+| `make install` | установить все зависимости проекта |
+| `make install-dev` | установить все зависимости для локальной работы |
+| `make run` | запуск приложения |
+| `make lint` | проверка линтерами диффа текущей ветки с мастером (ruff + mypy) |
+| `make test` | запуск всех тестов |
+| `make format` | форматирование ruff'ом диффа текущей ветки с мастером |
+| `make format-all` | форматирование ruff'ом всего проекта |
+| `make db-migrate 'migration name'` | создание новой миграции |
+| `make db-upgrade` | применить все миграции |
+| `make db-downgrade` | откатить последнюю миграцию |
+| `make db-history` | история миграций |
+| `make db-reset` | откатить схему БД и применить все миграции заново |
+| `make docker-run` | запуск проекта через docker-compose |
+| `make docker-stop` | остановка всех docker-compose сервисов |
+| `make docker-logs` | логи docker-compose сервисов |
+| `make docker-rebuild` | перебилд docker-compose сервисов |
+| `make docker-infra` | запуск инфраструктурных сервисов |
+| `make clean` | удалить кэши линтеров и тестов |
+| `make kill-server` | убить python-процессы, запущенные сервисом |
+| `make kill-server-force` | force-kill python-процессы, запущенные сервисом |
+| `make server-status` | проверка статуса сервиса |

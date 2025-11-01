@@ -1,97 +1,206 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Структура проекта"
+description: "Руководство по структуре проекта Python Backend"
 ---
 
-## Setting up
+# Структура проекта
 
-Get your documentation site up and running in minutes.
+Следим за тем чтобы были разделены следующие слои приложения:
+- конфиги приложения (работаем с env)
+- зависимости
+- миграции
+- модели
+- слой работы с данными (запросы в апи, с3, бд, кафку и т д)
+- бизнес логика
+- web интерфейс
+- единая точка входа где описаны все команды для приложения
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+Для соблюдения такого подхода в сервисах организована структура вида:
 
-## Make it yours
+## Структура директорий
 
-Design a docs site that looks great and empowers your users.
+- **app** - Директория с логикой приложения. Описанием всех usecase-ов, моделей, и тд. Содержит следующие директории:
+  - **models** - модели сущностей с которыми работает приложение (alembic, marshmallow, etc)
+  - **repositories** - уровень данных. отвечает за логику создания, доступа, редактирования. Не содержит бизнес логики.
+  - **services** - уровень бизнес логики. Этот уровень не знает про web и не знает про низкоуровневые детали хранения сущностей (БД, s3, файловая система, другие сервисы и пр.)
+- **web** - Директория с логикой работы web приложения. Описание endpoint'ов, построение apispec, и пр.
+  - **routes.py** - определяет перечень всех endpoint'ов
+  - **api** - директория, содержит описание endpoint'ов: схемы входных/выходных параметров, apispec, код вызова определенного сервиса из app/services.
+- **settings** - Настройки приложения, константы и переменные окружения.
+- **helpers / utils** - Общие инструменты не содержащие бизнес-логики
+- **requirements** - Директория с описанием зависимостей приложения
+- **docker-compose.yml** - поднимает все зависимости приложения (БД, s3, очереди), для **локальной** разработки
+- **manage.py** - единая точка входа где описаны все консольные команды для приложения
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+## Конфигурация
 
-## Create beautiful pages
+Проект конфигурируется с помощью **pyproject.toml** файла (вместо setup.cfg и requirements.txt), который содержит dev и prod зависимости, конфиги линтеров и pytest'а.
 
-Everything you need to create world-class documentation.
+## Зависимости
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+В качестве пакетного менеджера используем `uv` ([ссылка на документацию в confluence](https://confluence.fingular.com/spaces/PB/pages/142644478/%D0%9F%D0%B0%D0%BA%D0%B5%D1%82%D0%BD%D1%8B%D0%B5+%D0%BC%D0%B5%D0%BD%D0%B5%D0%B4%D0%B6%D0%B5%D1%80%D1%8B#id-%D0%9F%D0%B0%D0%BA%D0%B5%D1%82%D0%BD%D1%8B%D0%B5%D0%BC%D0%B5%D0%BD%D0%B5%D0%B4%D0%B6%D0%B5%D1%80%D1%8B-Uv)). Версии всех зависимостей фиксируем в `uv.lock` файле в корне проекта. `uv.lock` генерируется `uv` автоматически.
 
-## Need inspiration?
+## Docker
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+Пример типового **Dockerfile** (python3.10):
+
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy project files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+RUN uv sync --frozen --no-dev
+
+# Copy application code
+COPY . .
+
+CMD ["uv", "run", "python", "manage.py", "run"]
+```
+
+Чтобы тесты не оказывались в билде, добавляем **.dockerignore** файл, который позволяет исключить файлы из контекста билда. В .dockerignore файле должна быть директория `tests/`.
+
+## Makefile
+
+Шаблонный вариант Makefile'а с часто используемыми командами:
+
+```makefile
+.PHONY: help install-uv install install-dev run lint test format format-all db-migrate db-upgrade db-downgrade db-history db-reset docker-run docker-stop docker-logs docker-rebuild docker-infra clean kill-server kill-server-force server-status
+
+# Цвета для вывода
+RED = \033[0;31m
+GREEN = \033[0;32m
+YELLOW = \033[1;33m
+NC = \033[0m # No Color
+
+help: ## Показать это сообщение помощи
+	@echo "Доступные команды:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+
+install-uv: ## Установить uv глобально
+	@echo "$(YELLOW)Установка uv...$(NC)"
+	curl -LsSf https://astral.sh/uv/install.sh | sh
+
+install: ## Установить все зависимости проекта
+	@echo "$(YELLOW)Установка зависимостей...$(NC)"
+	uv sync --frozen
+
+install-dev: ## Установить все зависимости для разработки
+	@echo "$(YELLOW)Установка dev зависимостей...$(NC)"
+	uv sync --frozen --all-extras
+
+run: ## Запустить приложение
+	@echo "$(GREEN)Запуск приложения...$(NC)"
+	uv run python manage.py run
+
+lint: ## Проверить код линтерами (ruff + mypy)
+	@echo "$(YELLOW)Запуск линтеров...$(NC)"
+	uv run ruff check .
+	uv run mypy .
+
+test: ## Запустить все тесты
+	@echo "$(YELLOW)Запуск тестов...$(NC)"
+	uv run pytest
+
+format: ## Форматировать код с помощью ruff
+	@echo "$(YELLOW)Форматирование кода...$(NC)"
+	uv run ruff format .
+
+format-all: ## Форматировать весь проект с помощью ruff
+	@echo "$(YELLOW)Форматирование всего проекта...$(NC)"
+	uv run ruff format .
+	uv run ruff check --fix .
+
+db-migrate: ## Создать новую миграцию (использование: make db-migrate m="описание миграции")
+	@echo "$(YELLOW)Создание миграции...$(NC)"
+	uv run alembic revision --autogenerate -m "$(m)"
+
+db-upgrade: ## Применить все миграции
+	@echo "$(YELLOW)Применение миграций...$(NC)"
+	uv run alembic upgrade head
+
+db-downgrade: ## Откатить последнюю миграцию
+	@echo "$(YELLOW)Откат последней миграции...$(NC)"
+	uv run alembic downgrade -1
+
+db-history: ## Показать историю миграций
+	@echo "$(YELLOW)История миграций:$(NC)"
+	uv run alembic history
+
+db-reset: ## Откатить все миграции и применить заново
+	@echo "$(RED)Сброс базы данных...$(NC)"
+	uv run alembic downgrade base
+	uv run alembic upgrade head
+
+docker-run: ## Запустить проект через docker-compose
+	@echo "$(GREEN)Запуск docker-compose...$(NC)"
+	docker-compose up -d
+
+docker-stop: ## Остановить все docker-compose сервисы
+	@echo "$(YELLOW)Остановка docker-compose...$(NC)"
+	docker-compose down
+
+docker-logs: ## Показать логи docker-compose сервисов
+	docker-compose logs -f
+
+docker-rebuild: ## Пересобрать docker-compose сервисы
+	@echo "$(YELLOW)Пересборка docker-compose...$(NC)"
+	docker-compose up -d --build
+
+docker-infra: ## Запустить только инфраструктурные сервисы
+	@echo "$(GREEN)Запуск инфраструктуры...$(NC)"
+	docker-compose up -d postgres redis
+
+clean: ## Удалить кэши
+	@echo "$(YELLOW)Очистка кэшей...$(NC)"
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type d -name ".pytest_cache" -exec rm -rf {} +
+	find . -type d -name ".ruff_cache" -exec rm -rf {} +
+	find . -type d -name ".mypy_cache" -exec rm -rf {} +
+
+kill-server: ## Убить python-процессы сервиса
+	@echo "$(RED)Завершение python-процессов...$(NC)"
+	pkill -f "python manage.py run" || true
+
+kill-server-force: ## Force-kill python-процессы сервиса
+	@echo "$(RED)Force-kill python-процессов...$(NC)"
+	pkill -9 -f "python manage.py run" || true
+
+server-status: ## Проверить статус сервиса
+	@echo "$(YELLOW)Проверка статуса сервиса...$(NC)"
+	@pgrep -f "python manage.py run" > /dev/null && echo "$(GREEN)Сервис запущен$(NC)" || echo "$(RED)Сервис остановлен$(NC)"
+```
+
+### Доступные команды
+
+| Команда | Описание |
+|---------|----------|
+| `make help` | показать краткую справку |
+| `make install-uv` | глобальная установка `uv` |
+| `make install` | установить все зависимости проекта |
+| `make install-dev` | установить все зависимости для локальной работы |
+| `make run` | запуск приложения |
+| `make lint` | проверка линтерами диффа текущей ветки с мастером (ruff + mypy) |
+| `make test` | запуск всех тестов |
+| `make format` | форматирование ruff'ом диффа текущей ветки с мастером |
+| `make format-all` | форматирование ruff'ом всего проекта |
+| `make db-migrate` | создание новой миграции |
+| `make db-upgrade` | применить все миграции |
+| `make db-downgrade` | откатить последнюю миграцию |
+| `make db-history` | история миграций |
+| `make db-reset` | откатить схему БД и применить все миграции заново |
+| `make docker-run` | запуск проекта через docker-compose |
+| `make docker-stop` | остановка всех docker-compose сервисов |
+| `make docker-logs` | логи docker-compose сервисов |
+| `make docker-rebuild` | перебилд docker-compose сервисов |
+| `make docker-infra` | запуск инфраструктурных сервисов |
+| `make clean` | удалить кэши линтеров и тестов |
+| `make kill-server` | убить python-процессы, запущенные сервисом |
+| `make kill-server-force` | force-kill python-процессы, запущенные сервисом |
+| `make server-status` | проверка статуса сервиса |
